@@ -1,16 +1,28 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Static
+from textual.widgets import Static, Button
+from textual.containers import Horizontal, Vertical
 
 
 class PaddingDemo(App):
-    CSS_PATH = "style.css"
+    CSS_PATH = ["style.css", "tuilwind.css"]
+    TITLE = "Prodigy"
 
     def compose(self) -> ComposeResult:
         """Called to add widgets to the app."""
-        yield Static("p-1", classes="p-1 bg-blue-400")
-        yield Static("p-2", classes="p-2 bg-blue-500")
-        yield Static("p-3", classes="p-3 bg-blue-600")
-        yield Static("p-4", classes="p-4 bg-blue-700")
+        yield Static("Prodigy-TUI",  classes="dock-left h-full bg-gray-400 text-center bold w-25 p-1")
+        yield Vertical(
+            Vertical(
+                Static("CLASSNAME", classes="bg-purple-600 text-white text-center bold h-1"),
+                Static("This is input text.", classes="bg-white text-black text-center bold w-full h-1"),
+                classes="dock-top"
+            ),
+            Horizontal(
+                Button("Accept [A]", id="accept", classes="mx-3 w-30p", variant="success"),
+                Button("Reject [X]", id="reject", classes="mx-3 w-30p", variant="error"),
+                Button("Ignore [ ]", id="ignore", classes="mx-3 w-30p", variant="default"),
+                classes="dock-bottom h-4 w-full bg-gray-200"
+            )
+        )
 
 if __name__ == "__main__":
     app = PaddingDemo()
