@@ -1,11 +1,15 @@
+from typing import Sequence, Dict
 from textual.app import App, ComposeResult
 from textual.widgets import Static, Button
 from textual.containers import Horizontal, Vertical
 from textual import log
 
 
-def create_app(stream, dataset, classname) -> App:
-    class ProdigyApp(App):
+def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
+    """Creates a Textual app for Prodigy from the Command Line"""
+    stream = iter(stream)
+    class ProdigyTextcat(App):
+        """The Prodigy textcat Widget"""
         CSS_PATH = ["style.css", "subset.css"]
         TITLE = "Prodigy"
 
@@ -16,6 +20,7 @@ def create_app(stream, dataset, classname) -> App:
         }
 
         def render_count(self, kind="accept"):
+            """Renders a line of text for the sidebar to display counts."""
             if kind == "total":
                 n = sum(self.counts.values())
             else:
@@ -58,7 +63,7 @@ def create_app(stream, dataset, classname) -> App:
             )
             yield Vertical(
                 Vertical(
-                    Static(classname.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
+                    Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
                     Static(next(stream)['text'], classes="bg-white border-b-tall-gray-200 border-b-tall-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
                     classes="dock-top"
                 ),
@@ -69,10 +74,10 @@ def create_app(stream, dataset, classname) -> App:
                     classes="dock-bottom h-4 w-full bg-gray-200"
                 )
             )
-    return ProdigyApp
+    return ProdigyTextcat
 
 stream = ({"text": f"this is example number {i}"} for i in range(1000))
-app = create_app(stream=stream, dataset="demo-dataset", classname="POSITIVE SENTIMENT")
+app = create_app(stream=stream, dataset="demo-dataset", label="POSITIVE SENTIMENT")
 
 if __name__ == "__main__":
     app.run()
