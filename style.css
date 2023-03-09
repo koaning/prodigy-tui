@@ -13,3 +13,11 @@ Screen{
     background: $panel;
     padding: 2;
 }
+
+.w-30p{
+    width: 32%;
+}
+
+Button:focus {
+    text-style: bold;
+}

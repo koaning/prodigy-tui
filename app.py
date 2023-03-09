@@ -6,7 +6,7 @@ from textual import log
 
 def create_app(stream, dataset, classname) -> App:
     class ProdigyApp(App):
-        CSS_PATH = ["style.css", "tuilwind.css"]
+        CSS_PATH = ["style.css", "subset.css"]
         TITLE = "Prodigy"
 
         counts = {
