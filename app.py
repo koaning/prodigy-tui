@@ -1,6 +1,8 @@
 from typing import Sequence, Dict
 from textual.app import App, ComposeResult
-from textual.widgets import Static, Button
+from textual.widgets import Static, Button, TextLog
+from textual import events
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual import log
 
@@ -12,6 +14,11 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
         """The Prodigy textcat Widget"""
         CSS_PATH = ["style.css", "subset.css"]
         TITLE = "Prodigy"
+        BINDINGS = [
+            Binding("a", "on_annot('accept')", "Accept"),
+            Binding("x", "on_annot('reject')", "Reject"),
+            Binding("space", "on_annot('ignore')", "Ignore")
+        ]
 
         counts = {
             "accept": 0,
@@ -30,19 +37,26 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             msg += str(n)
             return msg
 
+        def action_on_annot(self, answer:str) -> None:
+            self.counts[answer] += 1
+            self.update_view()
+        
         def on_button_pressed(self, event: Button.Pressed) -> None:
             """Event handler called when a button is pressed."""
             log(f"button {event.button.id} got clicked")
             log(self.counts)
             if event.button.id == "accept":
                 self.counts['accept'] += 1
-                self.query_one("#n_accept").update(self.render_count("accept"))
             if event.button.id == "reject":
                 self.counts['reject'] += 1
-                self.query_one("#n_reject").update(self.render_count("reject"))
             if event.button.id == "ignore":
                 self.counts['ignore'] += 1
-                self.query_one("#n_ignore").update(self.render_count("ignore"))
+            self.update_view()
+        
+        def update_view(self):
+            self.query_one("#n_accept").update(self.render_count("accept"))
+            self.query_one("#n_reject").update(self.render_count("reject"))
+            self.query_one("#n_ignore").update(self.render_count("ignore"))
             self.query_one("#n_total").update(self.render_count("total"))
             self.query_one("#textcard").update(next(stream)['text'])
 
