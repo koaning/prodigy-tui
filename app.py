@@ -54,18 +54,19 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
         
         def _handle_annot_effect(self, answer: str) -> None:
             log(f"About to handle effect for {answer=}")
-            self.query_one("#textcard").remove_class("border-b-tall-gray-400")
-            class_to_add = "border-b-tall-gray-400"
+            classes="border-hkey-gray-600 border-hkey-green-600 border-hkey-red-600"
+            self.query_one("#textcard").remove_class("border-hkey-gray-400")
+            class_to_add = "border-hkey-gray-600"
             if answer == "accept":
-                class_to_add = "border-b-tall-green-400"
+                class_to_add = "border-hkey-green-600"
             if answer == "reject":
-                class_to_add = "border-b-tall-red-400"
+                class_to_add = "border-hkey-red-600"
             self.query_one("#textcard").add_class(class_to_add)
             self.set_timer(
                 self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").remove_class(class_to_add)
             )
             self.set_timer(
-                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("border-b-tall-gray-400")
+                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("border-hkey-gray-400")
             )
 
         def update_view(self):
@@ -92,7 +93,7 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             yield Vertical(
                 Vertical(
                     Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(next(stream)['text'], classes="bg-white border-b-tall-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
+                    Static(next(stream)['text'], classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(
@@ -105,7 +106,7 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             )
     return ProdigyTextcat
 
-stream = get_stream("go-emotions.jsonl", rehash=True)
+stream = get_stream("go-emotions-small.jsonl", rehash=True)
 print(next(stream))
 app = create_app(stream=stream, dataset="demo-dataset", label="POSITIVE SENTIMENT")
 
