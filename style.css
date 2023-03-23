@@ -14,8 +14,12 @@ Screen{
     padding: 2;
 }
 
-.w-30p{
-    width: 32%;
+.w-25p{
+    width: 25%;
+}
+
+.w-20p{
+    width: 23%;
 }
 
 Button:focus {

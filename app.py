@@ -60,7 +60,6 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             self.query_one("#n_total").update(self.render_count("total"))
             self.query_one("#textcard").update(next(stream)['text'])
 
-
         def compose(self) -> ComposeResult:
             """Called to add widgets to the app."""
             yield Vertical(
@@ -82,9 +81,10 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
                     classes="dock-top"
                 ),
                 Horizontal(
-                    Button("Accept [A]", id="accept", classes="mx-3 w-30p", variant="success",),
-                    Button("Reject [X]", id="reject", classes="mx-3 w-30p", variant="error",),
-                    Button("Ignore [ ]", id="ignore", classes="mx-3 w-30p", variant="default",),
+                    Button("Accept [A]", id="accept", classes="mx-3 w-20p", variant="success",),
+                    Button("Reject [X]", id="reject", classes="mx-3 w-20p", variant="error",),
+                    Button("Ignore [ ]", id="ignore", classes="mx-3 w-20p", variant="default",),
+                    Button("Undo [⌫]", id="undo", classes="mx-3 w-20p", variant="default",),
                     classes="dock-bottom h-4 w-full bg-gray-200"
                 )
             )
