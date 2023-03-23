@@ -5,7 +5,10 @@ from textual import events
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual import log
+from functools import partial
 
+
+from prodigy import get_stream
 
 def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
     """Creates a Textual app for Prodigy from the Command Line"""
@@ -19,6 +22,7 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             Binding("x", "on_annot('reject')", "Reject"),
             Binding("space", "on_annot('ignore')", "Ignore")
         ]
+        ACTIVE_EFFECT_DURATION = 0.6
 
         counts = {
             "accept": 0,
@@ -39,20 +43,31 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
 
         def action_on_annot(self, answer:str) -> None:
             self.counts[answer] += 1
+            log(self.counts)
+            self._handle_annot_effect(answer=answer)
             self.update_view()
         
         def on_button_pressed(self, event: Button.Pressed) -> None:
             """Event handler called when a button is pressed."""
             log(f"button {event.button.id} got clicked")
-            log(self.counts)
-            if event.button.id == "accept":
-                self.counts['accept'] += 1
-            if event.button.id == "reject":
-                self.counts['reject'] += 1
-            if event.button.id == "ignore":
-                self.counts['ignore'] += 1
-            self.update_view()
+            self.action_on_annot(answer = event.button.id)
         
+        def _handle_annot_effect(self, answer: str) -> None:
+            log(f"About to handle effect for {answer=}")
+            self.query_one("#textcard").remove_class("border-b-tall-gray-400")
+            class_to_add = "border-b-tall-gray-400"
+            if answer == "accept":
+                class_to_add = "border-b-tall-green-400"
+            if answer == "reject":
+                class_to_add = "border-b-tall-red-400"
+            self.query_one("#textcard").add_class(class_to_add)
+            self.set_timer(
+                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").remove_class(class_to_add)
+            )
+            self.set_timer(
+                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("border-b-tall-gray-400")
+            )
+
         def update_view(self):
             self.query_one("#n_accept").update(self.render_count("accept"))
             self.query_one("#n_reject").update(self.render_count("reject"))
@@ -77,7 +92,7 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             yield Vertical(
                 Vertical(
                     Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(next(stream)['text'], classes="bg-white border-b-tall-gray-200 border-b-tall-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
+                    Static(next(stream)['text'], classes="bg-white border-b-tall-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(
@@ -90,7 +105,8 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             )
     return ProdigyTextcat
 
-stream = ({"text": f"this is example number {i}"} for i in range(1000))
+stream = get_stream("go-emotions.jsonl", rehash=True)
+print(next(stream))
 app = create_app(stream=stream, dataset="demo-dataset", label="POSITIVE SENTIMENT")
 
 if __name__ == "__main__":

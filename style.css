@@ -6,14 +6,6 @@ Screen{
     align: center middle;
 }
 
-.checkbox-container {
-    width: auto;
-    height: auto;
-    border: solid $primary;
-    background: $panel;
-    padding: 2;
-}
-
 .w-25p{
     width: 25%;
 }
@@ -24,4 +16,25 @@ Screen{
 
 Button:focus {
     text-style: bold;
+}
+
+.px{
+    padding-right: 1;
+    padding-left: 1;
+}
+
+.border-b-tall-green-400 {
+    border-bottom: tall rgb(74,222,128);
+}
+
+.border-tall-green-400 {
+    border: tall rgb(74,222,128);
+}
+
+.border-b-tall-red-400 {
+    border-bottom: tall rgb(248,113,113);
+}
+
+.border-tall-red-400 {
+    border: tall rgb(248,113,113);
 }
