@@ -1,18 +1,27 @@
-from typing import Sequence, Dict
+import datetime as dt 
+from radicli import Radicli, Arg
+from pathlib import Path 
+from typing import Sequence, Dict, Optional, List
+
+from prodigy import get_stream
+from prodigy.util import set_hashes
+from prodigy.core import Controller
+
 from textual.app import App, ComposeResult
-from textual.widgets import Static, Button, TextLog
-from textual import events
+from textual.widgets import Static, Button
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual import log
-from functools import partial
 
 
-from prodigy import get_stream
+class AppState:
+    def __init__(self, ctrl: Controller) -> None:
+        pass
 
-def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
+
+def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[str]=None) -> App:
     """Creates a Textual app for Prodigy from the Command Line"""
-    stream = iter(stream)
+
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
         CSS_PATH = ["style.css", "subset.css"]
@@ -20,15 +29,24 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
         BINDINGS = [
             Binding("a", "on_annot('accept')", "Accept"),
             Binding("x", "on_annot('reject')", "Reject"),
-            Binding("space", "on_annot('ignore')", "Ignore")
+            Binding("space", "on_annot('ignore')", "Ignore"),
+            Binding("backspace", "on_annot('undo')", "Undo")
         ]
         ACTIVE_EFFECT_DURATION = 0.6
+        _batch_now: List[Dict] = ctrl.get_questions(session_id=session_id)
+        _history: List[Dict] = []
+        _idx: int = 0
 
         counts = {
             "accept": 0,
             "reject": 0,
             "ignore": 0
         }
+
+        @property
+        def current_text(self):
+            return self._batch_now[self._idx]['text']
+        
 
         def render_count(self, kind="accept"):
             """Renders a line of text for the sidebar to display counts."""
@@ -42,18 +60,55 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             return msg
 
         def action_on_annot(self, answer:str) -> None:
-            self.counts[answer] += 1
-            log(self.counts)
             self._handle_annot_effect(answer=answer)
+            self._set_answer_current_example(answer=answer)
+            self._update_annot_state(answer=answer)
             self.update_view()
         
         def on_button_pressed(self, event: Button.Pressed) -> None:
             """Event handler called when a button is pressed."""
-            log(f"button {event.button.id} got clicked")
+            if event.button.id == "save":
+                return self.action_on_save()
             self.action_on_annot(answer = event.button.id)
         
+        def action_on_save(self):
+            ctrl.receive_answers(self._history)
+            self._batch_now = ctrl.get_questions(session_id=session_id)
+            self._idx = 0
+            self._history = []
+            self.update_view()
+        
+        def _update_annot_state(self, answer:str):
+            # Do we need to fetch the next batch?
+            log(f"{len(self._history)=} {len(self._batch_now)=}, {self._idx=}, {answer=}")
+            if answer == "undo":
+                if self._idx == 0:
+                    return 
+                self._idx -= 1
+                self._history.pop(len(self._history) - 1)
+                return
+            self._history.append(self._batch_now[self._idx])
+            if self._idx >= (len(self._batch_now) - 1):
+                self._history.pop(0)
+                result = self._batch_now.pop(0)
+                ctrl.receive_answers([result], session_id=session_id)
+                self._batch_now = ctrl.get_questions(session_id=session_id)
+                self._idx = len(self._batch_now) - 1
+            else:
+                self._idx += 1
+            if answer != "undo":
+                self.counts[answer] += 1
+
+        def _set_answer_current_example(self, answer: str) -> None:
+            if answer == "undo":
+                return
+            log(answer)
+            self._batch_now[self._idx]["answer"] = answer
+            self._batch_now[self._idx]["label"] = label
+            timestamp = dt.datetime.timestamp((dt.datetime.now()))
+            self._batch_now[self._idx]["timestamp"] = int(timestamp)
+        
         def _handle_annot_effect(self, answer: str) -> None:
-            log(f"About to handle effect for {answer=}")
             classes="border-hkey-gray-600 border-hkey-green-600 border-hkey-red-600"
             self.query_one("#textcard").remove_class("border-hkey-gray-400")
             class_to_add = "border-hkey-gray-600"
@@ -69,31 +124,57 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
                 self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("border-hkey-gray-400")
             )
 
+        def _annot_str(self, ex:Dict):
+            log(ex)
+            answer, txt = ex["answer"], ex["text"]
+            if len(txt) >= 15:
+                txt = txt[:15] + "..."
+            if answer == "accept":
+                return f"✅ {txt}"
+            if answer == "reject":
+                return f"❌ {txt}"
+            if answer == "ignore":
+                return f"⏩ {txt}"
+            raise ValueError("answer can only be accept/reject/skip in sidebar")
+
+        def _history_str(self):
+            truncated = [self._annot_str(ex) for ex in self._history]
+            return "\n".join(truncated)
+
         def update_view(self):
             self.query_one("#n_accept").update(self.render_count("accept"))
             self.query_one("#n_reject").update(self.render_count("reject"))
             self.query_one("#n_ignore").update(self.render_count("ignore"))
             self.query_one("#n_total").update(self.render_count("total"))
-            self.query_one("#textcard").update(next(stream)['text'])
+            self.query_one("#textcard").update(self.current_text)
+            self.query_one("#history").update(self._history_str())
 
         def compose(self) -> ComposeResult:
             """Called to add widgets to the app."""
             yield Vertical(
                 Static("Prodigy-TUI", classes="bold text-white text-center"),
                 Static("", classes="bold text-gray-100"),
-                Static(f"Dataset: {dataset}", classes="text-gray-100"),
+                Button("💾", id="save", classes="mx-3 w-20p", variant="primary",),
+                Static("", classes="bold text-gray-100"),
+                Static(f"Dataset: {dataset}", classes="text-gray-500 text-center"),
+                Static("", classes="bold text-gray-100"),
+                Static("Progress", classes="bold text-white text-center pb-1"),
                 Static("", classes="bold text-gray-100"),
                 Static(self.render_count("accept"), classes="bold text-gray-100", id="n_accept"),
                 Static(self.render_count("reject"), classes="bold text-gray-100", id="n_reject"),
                 Static(self.render_count("ignore"), classes="bold text-gray-100", id="n_ignore"),
                 Static("", classes="bold text-gray-100"),
                 Static(self.render_count("total"), classes="bold text-gray-100", id="n_total"),
+                Static("", classes="bold text-gray-100"),
+                Static("History", classes="bold text-white text-center pb-1"),
+                Static("", classes="bold text-gray-100"),
+                Static("", classes="bold text-gray-100", id="history"),
                 classes="dock-left h-full bg-gray-500 w-25 p-1 border-r-tall-gray-600"
             )
             yield Vertical(
                 Vertical(
                     Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(next(stream)['text'], classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1 pt-1", id="textcard"),
+                    Static(self.current_text, classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(
@@ -106,9 +187,42 @@ def create_app(stream: Sequence[Dict], dataset:str, label:str) -> App:
             )
     return ProdigyTextcat
 
-stream = get_stream("go-emotions-small.jsonl", rehash=True)
-print(next(stream))
-app = create_app(stream=stream, dataset="demo-dataset", label="POSITIVE SENTIMENT")
+# stream = get_stream("go-emotions-small.jsonl", rehash=True)
+
+cli = Radicli()
+
+@cli.command(
+    "textcat.tui.manual",
+    dataset=Arg(help="dataset to write annotations into"),
+    source=Arg(help="path to text source"),
+    label=Arg("--label", "-l", help="category label to apply, only binary is supported"),
+    session_id=Arg("--session-id", "-s", help="session_id to attach to annotations")
+)
+def textcat_tui_manual(dataset:str, source: Path, label: str, session_id: str=None):
+    """Interface for binary text classification from the terminal!"""
+    # TODO: why does this give a resource warning?
+    stream = get_stream(source, dedup=True, rehash=True)
+    components = {
+        "dataset": dataset,
+        "view_id": "classification",
+        "stream": stream
+    }
+    ctrl = Controller.from_components("textcat.tui.manual", components)
+    app = create_app(dataset=dataset, label=label, ctrl=ctrl, session_id=session_id)
+    app().run()
+
+# source = "go-emotions-small.jsonl"
+# dataset = "tui-total-demo"
+# session_id = None
+# stream = get_stream(source, dedup=True, rehash=True)
+# components = {
+#     "dataset": dataset,
+#     "view_id": "classification",
+#     "stream": stream
+# }
+# ctrl = Controller.from_components("textcat.tui.manual", components)
+# app = create_app(dataset="demo", label="pos", ctrl=ctrl, session_id=session_id)
 
 if __name__ == "__main__":
-    app.run()
+    cli.run()
+    # app.run()

@@ -16,6 +16,9 @@
 .border-hkey-gray-400{
     border: hkey rgb(156,163,175);
 }
+.text-gray-500{
+    color: rgb(107,114,128);
+}
 .bg-gray-500{
     background: rgb(107,114,128);
 }
@@ -49,8 +52,8 @@
 .p-1{
     padding: 1;
 }
-.pt-1{
-    padding-top: 1;
+.pb-1{
+    padding-bottom: 1;
 }
 .mx-3{
     margin-left: 3;
