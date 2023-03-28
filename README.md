@@ -2,7 +2,7 @@
 
 A TUI for [Prodigy](https://prodi.gy/), made with [Textual](https://textual.textualize.io/). 
 
-![](demo.svg)
+![](landing.png)
 
 This project is currently mainly meant as a demo. Partially because doing annotations via the terminal is relatively experimental, but also because I cannot guarantee full feature parity with Prodigy just yet. The only implemented interface right now is `textcat.manual` but I may implement more in the future. 
 
