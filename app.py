@@ -58,12 +58,12 @@ class State:
         hashes = [e['_task_hash'] for e in self._history]
         self._queue = [q for q in new_questions if q['_task_hash'] not in hashes]
     
-    def update(self, answer):
-        if answer in ['accept', 'reject', 'ignore']:
-            self._annot(answer)
-        if answer == 'undo':
+    def update(self, event):
+        if event in ['accept', 'reject', 'ignore']:
+            self._annot(event)
+        if event == 'undo':
             self._undo()
-        if answer == 'save':
+        if event == 'save':
             self._save()
     
     def _annot(self, answer):
@@ -108,10 +108,12 @@ def create_app(dataset:str, label:str, ctrl: Controller) -> App:
             Binding("a", "on_annot('accept')", "Accept"),
             Binding("x", "on_annot('reject')", "Reject"),
             Binding("space", "on_annot('ignore')", "Ignore"),
-            Binding("backspace", "on_annot('undo')", "Undo")
+            Binding("backspace", "on_annot('undo')", "Undo"),
+            Binding("ctrl+s", "on_annot('save')", "Save"),
+            Binding("cmd+s", "on_annot('save')", "Save"),
         ]
         ACTIVE_EFFECT_DURATION = 0.6
-        state = AppState(ctrl=ctrl, label=label)
+        state = State(ctrl=ctrl, label=label)
 
         def render_count(self, kind="accept"):
             """Renders a line of text for the sidebar to display counts."""
@@ -120,7 +122,7 @@ def create_app(dataset:str, label:str, ctrl: Controller) -> App:
             else:
                 n = self.state.counts[kind]
             msg = f"{kind.upper()}"
-            msg += (17 - len(msg)) * " "
+            msg += (20 - len(msg)) * " "
             msg += str(n)
             return msg
 
@@ -176,7 +178,7 @@ def create_app(dataset:str, label:str, ctrl: Controller) -> App:
             yield Vertical(
                 Static("Prodigy-TUI", classes="bold text-center"),
                 Static("",),
-                Button("💾", id="save", classes="mx-3", variant="primary",),
+                Button("💾", id="save", classes="w-full", variant="primary",),
                 Static("",),
                 Static(f"Dataset: {dataset}", classes="text-center"),
                 Static("",),
