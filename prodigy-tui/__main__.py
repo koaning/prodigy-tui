@@ -9,7 +9,7 @@ from .app import create_app
 cli = Radicli()
 
 @cli.command(
-    "textcat.tui.manual",
+    "textcat.manual",
     dataset=Arg(help="dataset to write annotations into"),
     source=Arg(help="path to text source"),
     label=Arg("--label", "-l", help="category label to apply, only binary is supported"),
