@@ -1,10 +1,10 @@
 import datetime as dt 
 from radicli import Radicli, Arg
 from pathlib import Path 
-from typing import Sequence, Dict, Optional, List
+from typing import Dict, Optional, List
+from collections import Counter
 
 from prodigy import get_stream
-from prodigy.util import set_hashes
 from prodigy.core import Controller
 
 from textual.app import App, ComposeResult
@@ -13,10 +13,78 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual import log
 
+# TODO: 
+# - handle edge case when stream is empty
 
 class AppState:
-    def __init__(self, ctrl: Controller) -> None:
-        pass
+    def __init__(self, ctrl: Controller, session_id=None, label=None) -> None:
+        self.ctrl = ctrl
+        self.session_id = session_id
+        self.batch_now: List[Dict] = self.ctrl.get_questions(session_id=session_id)
+        self.history: List[Dict] = []
+        self.idx: int = 0
+        self.label = label
+        self._lt_counts = Counter({
+            "accept": 0,
+            "reject": 0,
+            "ignore": 0
+        })
+    
+    @property
+    def card_contents(self):
+        """For now we only consider text, but we might extend this to other types."""
+        return self.batch_now[self.idx]['text']
+
+    @property
+    def counts(self):
+        """Short term counts can be undone with 'undo'. Long term counts are in db."""
+        return Counter([r['answer'] for r in self.history]) + self._lt_counts
+    
+    def update(self, event: str):
+        if event in ["accept", "reject", "skip"]:
+            self._annotate_current(answer=event)
+        if event == "save":
+            self._save_full_history()
+        if event == "undo":
+            self._undo_annot()
+    
+    def _annotate_current(self, answer:str) -> None:
+        self._set_answer_current_example(answer=answer)
+        self.history.append(self.batch_now[self.idx])
+        if self.idx >= (len(self.batch_now) - 1):
+            self.history.pop(0)
+            result = self.batch_now.pop(0)
+            self._lt_counts[result['answer']] += 1
+            self.ctrl.receive_answers([result], session_id=self.session_id)
+            self.batch_now = self.ctrl.get_questions(session_id=self.session_id)
+            self.idx = len(self.batch_now) - 1
+        else:
+            self.idx += 1
+        self.counts[answer] += 1
+    
+    def _undo_annot(self) -> None:
+        if self.idx == 0:
+            return 
+        self.idx -= 1
+        self.history.pop(len(self.history) - 1)
+    
+    def _save_full_history(self) -> None:
+        for r in self.history:
+            self._lt_counts[r['answer']] += 1
+        self.ctrl.receive_answers(self.history)
+        self.batch_now = self.ctrl.get_questions(session_id=self.session_id)
+        self.idx = 0
+        self.history = []
+
+    def _set_answer_current_example(self, answer: str) -> None:
+        if answer == "undo":
+            return
+        log(answer)
+        self.batch_now[self.idx]["answer"] = answer
+        self.batch_now[self.idx]["_session_id"] = self.session_id
+        self.batch_now[self.idx]["label"] = self.label
+        timestamp = dt.datetime.timestamp((dt.datetime.now()))
+        self.batch_now[self.idx]["timestamp"] = int(timestamp)
 
 
 def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[str]=None) -> App:
@@ -33,27 +101,14 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             Binding("backspace", "on_annot('undo')", "Undo")
         ]
         ACTIVE_EFFECT_DURATION = 0.6
-        _batch_now: List[Dict] = ctrl.get_questions(session_id=session_id)
-        _history: List[Dict] = []
-        _idx: int = 0
-
-        counts = {
-            "accept": 0,
-            "reject": 0,
-            "ignore": 0
-        }
-
-        @property
-        def current_text(self):
-            return self._batch_now[self._idx]['text']
-        
+        state = AppState(ctrl=ctrl, session_id=session_id, label=label)
 
         def render_count(self, kind="accept"):
             """Renders a line of text for the sidebar to display counts."""
             if kind == "total":
-                n = sum(self.counts.values())
+                n = sum(self.state.counts.values())
             else:
-                n = self.counts[kind]
+                n = self.state.counts[kind]
             msg = f"{kind.upper()}"
             msg += (17 - len(msg)) * " "
             msg += str(n)
@@ -61,8 +116,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
 
         def action_on_annot(self, answer:str) -> None:
             self._handle_annot_effect(answer=answer)
-            self._set_answer_current_example(answer=answer)
-            self._update_annot_state(answer=answer)
+            self.state.update_annot_state(answer=answer)
             self.update_view()
         
         def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -72,41 +126,8 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             self.action_on_annot(answer = event.button.id)
         
         def action_on_save(self):
-            ctrl.receive_answers(self._history)
-            self._batch_now = ctrl.get_questions(session_id=session_id)
-            self._idx = 0
-            self._history = []
+            self.state._save_full_history()
             self.update_view()
-        
-        def _update_annot_state(self, answer:str):
-            # Do we need to fetch the next batch?
-            log(f"{len(self._history)=} {len(self._batch_now)=}, {self._idx=}, {answer=}")
-            if answer == "undo":
-                if self._idx == 0:
-                    return 
-                self._idx -= 1
-                self._history.pop(len(self._history) - 1)
-                return
-            self._history.append(self._batch_now[self._idx])
-            if self._idx >= (len(self._batch_now) - 1):
-                self._history.pop(0)
-                result = self._batch_now.pop(0)
-                ctrl.receive_answers([result], session_id=session_id)
-                self._batch_now = ctrl.get_questions(session_id=session_id)
-                self._idx = len(self._batch_now) - 1
-            else:
-                self._idx += 1
-            if answer != "undo":
-                self.counts[answer] += 1
-
-        def _set_answer_current_example(self, answer: str) -> None:
-            if answer == "undo":
-                return
-            log(answer)
-            self._batch_now[self._idx]["answer"] = answer
-            self._batch_now[self._idx]["label"] = label
-            timestamp = dt.datetime.timestamp((dt.datetime.now()))
-            self._batch_now[self._idx]["timestamp"] = int(timestamp)
         
         def _handle_annot_effect(self, answer: str) -> None:
             classes="border-hkey-gray-600 border-hkey-green-600 border-hkey-red-600"
@@ -125,7 +146,6 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             )
 
         def _annot_str(self, ex:Dict):
-            log(ex)
             answer, txt = ex["answer"], ex["text"]
             if len(txt) >= 15:
                 txt = txt[:15] + "..."
@@ -138,7 +158,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             raise ValueError("answer can only be accept/reject/skip in sidebar")
 
         def _history_str(self):
-            truncated = [self._annot_str(ex) for ex in self._history]
+            truncated = [self._annot_str(ex) for ex in self.state.history]
             return "\n".join(truncated)
 
         def update_view(self):
@@ -146,7 +166,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             self.query_one("#n_reject").update(self.render_count("reject"))
             self.query_one("#n_ignore").update(self.render_count("ignore"))
             self.query_one("#n_total").update(self.render_count("total"))
-            self.query_one("#textcard").update(self.current_text)
+            self.query_one("#textcard").update(self.state.current_text)
             self.query_one("#history").update(self._history_str())
 
         def compose(self) -> ComposeResult:
@@ -174,7 +194,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             yield Vertical(
                 Vertical(
                     Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(self.current_text, classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
+                    Static(self.state.current_text, classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(
@@ -211,17 +231,17 @@ def textcat_tui_manual(dataset:str, source: Path, label: str, session_id: str=No
     app = create_app(dataset=dataset, label=label, ctrl=ctrl, session_id=session_id)
     app().run()
 
-# source = "go-emotions-small.jsonl"
-# dataset = "tui-total-demo"
-# session_id = None
-# stream = get_stream(source, dedup=True, rehash=True)
-# components = {
-#     "dataset": dataset,
-#     "view_id": "classification",
-#     "stream": stream
-# }
-# ctrl = Controller.from_components("textcat.tui.manual", components)
-# app = create_app(dataset="demo", label="pos", ctrl=ctrl, session_id=session_id)
+source = "go-emotions-small.jsonl"
+dataset = "tui-total-demo"
+session_id = None
+stream = get_stream(source, dedup=True, rehash=True)
+components = {
+    "dataset": dataset,
+    "view_id": "classification",
+    "stream": stream
+}
+ctrl = Controller.from_components("textcat.tui.manual", components)
+app = create_app(dataset="demo", label="pos", ctrl=ctrl, session_id=session_id)
 
 if __name__ == "__main__":
     cli.run()
