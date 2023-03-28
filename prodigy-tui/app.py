@@ -75,6 +75,7 @@ class State:
             item = self._history.pop(0)
             self._ctrl.receive_answers([item])
             self._fetch_new_questions()
+            self._lt_counts[answer] += 1
 
     def _undo(self):
         if len(self._history) == 0:
@@ -84,6 +85,8 @@ class State:
 
     def _save(self):
         self._ctrl.receive_answers(self._history)
+        for ex in self._history:
+            self._lt_counts[ex["answer"]] += 1
         self._history = []
         self._fetch_new_questions()
 

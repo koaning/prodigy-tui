@@ -77,9 +77,10 @@ def test_state_updates_after_many_hits(controller, event):
     db = connect()
     examples = db.get_dataset_examples(state.dataset)
     assert len(examples) == 20
+    assert sum(state.counts.values()) == 20
 
 
-@pytest.mark.parametrize("event", ["accept"])
+@pytest.mark.parametrize("event", ["accept", "ignore", "reject"])
 def test_empty_card(controller, event):
     state = State(ctrl=controller, label="DEMO")
     for _ in range(20):
