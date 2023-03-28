@@ -43,7 +43,7 @@ class AppState:
         return Counter([r['answer'] for r in self.history]) + self._lt_counts
     
     def update(self, event: str):
-        if event in ["accept", "reject", "skip"]:
+        if event in ["accept", "reject", "ignore"]:
             self._annotate_current(answer=event)
         if event == "save":
             self._save_full_history()
@@ -121,23 +121,21 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             self.update_view()
         
         def on_button_pressed(self, event: Button.Pressed) -> None:
-            """Event handler called when a button is pressed."""
             self.action_on_annot(answer = event.button.id)
         
         def _handle_annot_effect(self, answer: str) -> None:
-            classes="border-hkey-gray-600 border-hkey-green-600 border-hkey-red-600"
-            self.query_one("#textcard").remove_class("border-hkey-gray-400")
-            class_to_add = "border-hkey-gray-600"
+            self.query_one("#textcard").remove_class("base-card-border")
+            class_to_add = "gray-card-border"
             if answer == "accept":
-                class_to_add = "border-hkey-green-600"
+                class_to_add = "green-card-border"
             if answer == "reject":
-                class_to_add = "border-hkey-red-600"
+                class_to_add = "red-card-border"
             self.query_one("#textcard").add_class(class_to_add)
             self.set_timer(
                 self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").remove_class(class_to_add)
             )
             self.set_timer(
-                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("border-hkey-gray-400")
+                self.ACTIVE_EFFECT_DURATION, lambda: self.query_one("#textcard").add_class("base-card-border")
             )
 
         def _annot_str(self, ex:Dict):
@@ -167,37 +165,42 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
         def compose(self) -> ComposeResult:
             """Called to add widgets to the app."""
             yield Vertical(
-                Static("Prodigy-TUI", classes="bold text-white text-center"),
-                Static("", classes="bold text-gray-100"),
-                Button("💾", id="save", classes="mx-3 w-20p", variant="primary",),
-                Static("", classes="bold text-gray-100"),
-                Static(f"Dataset: {dataset}", classes="text-gray-500 text-center"),
-                Static("", classes="bold text-gray-100"),
-                Static("Progress", classes="bold text-white text-center pb-1"),
-                Static("", classes="bold text-gray-100"),
-                Static(self.render_count("accept"), classes="bold text-gray-100", id="n_accept"),
-                Static(self.render_count("reject"), classes="bold text-gray-100", id="n_reject"),
-                Static(self.render_count("ignore"), classes="bold text-gray-100", id="n_ignore"),
-                Static("", classes="bold text-gray-100"),
-                Static(self.render_count("total"), classes="bold text-gray-100", id="n_total"),
-                Static("", classes="bold text-gray-100"),
-                Static("History", classes="bold text-white text-center pb-1"),
-                Static("", classes="bold text-gray-100"),
-                Static("", classes="bold text-gray-100", id="history"),
-                classes="dock-left h-full bg-gray-500 w-25 p-1 border-r-tall-gray-600"
+                Static("Prodigy-TUI", classes="bold text-center"),
+                Static("",),
+                Button("💾", id="save", classes="mx-3", variant="primary",),
+                Static("",),
+                Static(f"Dataset: {dataset}", classes="text-center"),
+                Static(f"Session: {session_id}", classes="text-center"),
+                Static("",),
+                Static("Progress", classes="bold text-center"),
+                Static("",),
+                Static(self.render_count("accept"), classes="bold", id="n_accept"),
+                Static(self.render_count("reject"), classes="bold", id="n_reject"),
+                Static(self.render_count("ignore"), classes="bold", id="n_ignore"),
+                Static("",),
+                Static(self.render_count("total"), classes="bold", id="n_total"),
+                Static("History", classes="bold text-center"),
+                Static("",),
+                Static("", classes="bold", id="history"),
+                classes="sidebar"
             )
             yield Vertical(
                 Vertical(
-                    Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(self.state.card_contents['text'], classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
+                    Static(label.upper(), classes="labelname"),
+                    Static(self.state.card_contents['text'], classes="text-card base-card-border text-center bold", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(
-                    Button("Accept [A]", id="accept", classes="mx-3 w-20p", variant="success",),
-                    Button("Reject [X]", id="reject", classes="mx-3 w-20p", variant="error",),
-                    Button("Ignore [ ]", id="ignore", classes="mx-3 w-20p", variant="default",),
-                    Button("Undo [⌫]", id="undo", classes="mx-3 w-20p", variant="default",),
-                    classes="dock-bottom h-4 w-full bg-gray-200"
+                    Static("", classes="box"),
+                    Horizontal(
+                        Button("Accept [A]", id="accept", classes="btn", variant="success",),
+                        Button("Reject [X]", id="reject", classes="btn", variant="error",),
+                        Button("Ignore [ ]", id="ignore", classes="btn", variant="default",),
+                        Button("Undo [⌫]", id="undo", classes="btn", variant="default",),
+                        classes="btn-container"
+                    ),
+                    Static("", classes="box"),
+                    classes="dock-bottom"
                 )
             )
     return ProdigyTextcat

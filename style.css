@@ -2,39 +2,83 @@ Screen{
     background: rgb(229,231,235);
 }
 
-.centered{
-    align: center middle;
-}
-
-.w-25p{
-    width: 25%;
-}
-
-.w-20p{
-    width: 23%;
-}
-
 Button:focus {
     text-style: bold;
 }
 
-.px{
-    padding-right: 1;
-    padding-left: 1;
+.sidebar{
+    dock: left;
+    border-right: tall rgb(75,85,99);
+    background: rgb(107,114,128);
+    width: 25;
+    padding: 1;
 }
 
-.border-b-tall-green-400 {
-    border-bottom: tall rgb(74,222,128);
+.btn{
+    margin-right: 1;
+    margin-left: 1;
+    width: 25%;
 }
 
-.border-tall-green-400 {
-    border: tall rgb(74,222,128);
+.box{
+    width: 1fr;
 }
 
-.border-b-tall-red-400 {
-    border-bottom: tall rgb(248,113,113);
+.dock-bottom{
+    dock: bottom;
+    height: 5;
+    layout: horizontal;
+    content-align: center middle;
 }
 
-.border-tall-red-400 {
-    border: tall rgb(248,113,113);
+.btn-container{
+    width: 24fr;
+    padding: 1;
+    background: white;
+}
+
+.centered{
+    align: center middle;
+}
+
+w-full{
+    width: 100%;
+}
+
+.gray-card-border{
+    border: hkey rgb(75,85,99);
+}
+.red-card-border{
+    border: hkey rgb(220,38,38);
+}
+.green-card-border{
+    border: hkey rgb(22,163,74);
+}
+.base-card-border{
+    border: hkey rgb(156,163,175);
+}
+
+.labelname{
+    border-top: tall rgb(243,232,255);
+    background: rgb(147,51,234);
+    border-bottom: tall rgb(88,28,135);
+    color: white;
+    margin: 1;
+    text-align: center;
+    text-style: bold;
+}
+
+.text-card{
+    background: white;
+    width: 100%;
+    height: auto;
+    margin: 1;
+    color: black;
+}
+
+.text-center{
+    text-align: center;
+}
+.bold{
+    text-style: bold;
 }
