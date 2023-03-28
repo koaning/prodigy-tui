@@ -1,14 +1,11 @@
 import contextlib
-from typing import Any, Dict, Generator, Generic, TypeVar
-from pathlib import Path
+from typing import Generator
 
-import pytest 
-
-from prodigy import get_stream
-from prodigy.core import Controller
-from prodigy.components.db import connect
-
+import pytest
 from app import State
+from prodigy import get_stream
+from prodigy.components.db import connect
+from prodigy.core import Controller
 
 
 @contextlib.contextmanager
@@ -26,11 +23,7 @@ def controller():
     with tmp_dataset() as f:
         source = [{"text": f"example {i}"} for i in range(20)]
         stream = get_stream(source, dedup=True, rehash=True)
-        components = {
-            "dataset": f,
-            "view_id": "classification",
-            "stream": stream
-        }
+        components = {"dataset": f, "view_id": "classification", "stream": stream}
         return Controller.from_components("textcat.tui.manual", components)
 
 
@@ -53,8 +46,8 @@ def test_state_updates_after_undo(controller, event):
     for _ in range(10):
         state.update(event)
         annot = state.history[0]
-        assert annot['label'] == "DEMO"
-        assert annot['answer'] == event
+        assert annot["label"] == "DEMO"
+        assert annot["answer"] == event
         assert "timestamp" in annot
 
         state.update("undo")
@@ -92,4 +85,4 @@ def test_empty_card(controller, event):
     for _ in range(20):
         state.update(event)
     state.update("save")
-    assert "empty stream" in state.card_contents['text']
+    assert "empty stream" in state.card_contents["text"]

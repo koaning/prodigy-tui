@@ -1,0 +1,5 @@
+[flake8]
+max-complexity=10
+ignore=C901
+max-line-length=125
+exclude = */__init__.py, */*/__init__.py, venv
