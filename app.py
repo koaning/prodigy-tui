@@ -1,3 +1,5 @@
+from queue import SimpleQueue, Queue
+
 import datetime as dt 
 from radicli import Radicli, Arg
 from pathlib import Path 
@@ -6,6 +8,7 @@ from collections import Counter
 
 from prodigy import get_stream
 from prodigy.core import Controller
+from prodigy.components.db import connect
 
 from textual.app import App, ComposeResult
 from textual.widgets import Static, Button
@@ -16,84 +19,90 @@ from textual import log
 # TODO: 
 # - handle edge case when stream is empty
 
-class AppState:
-    def __init__(self, ctrl: Controller, session_id=None, label=None) -> None:
-        self.ctrl = ctrl
-        self.session_id = session_id
-        self.batch_now: List[Dict] = self.ctrl.get_questions(session_id=session_id)
-        self.history: List[Dict] = []
-        self.idx: int = 0
-        self.label = label
+
+class State:
+    def __init__(self, ctrl, label):
+        self._ctrl = ctrl
+        self.dataset = ctrl.dataset
+        self._label = label
+        self._queue = ctrl.get_questions(session_id=None)
+        self._history = []
         self._lt_counts = Counter({
             "accept": 0,
             "reject": 0,
             "ignore": 0
         })
-    
+
     @property
     def card_contents(self):
         """For now we only consider text, but we might extend this to other types."""
-        if len(self.batch_now) == 0:
-            return {"text": "empty stream"}
-        return {"text": self.batch_now[self.idx]['text']}
+        if len(self._queue) == 0:
+            return {"text": "empty stream. \n\n (this probably means that you've annotated everything.)"}
+        return {"text": self._queue[0]['text']}
 
     @property
     def counts(self):
         """Short term counts can be undone with 'undo'. Long term counts are in db."""
-        return Counter([r['answer'] for r in self.history]) + self._lt_counts
+        return Counter([r['answer'] for r in self._history]) + self._lt_counts
+
+    @property
+    def history(self):
+        return self._history
+
+    def get_dataset_examples(self):
+        db = connect()
+        return db.get_dataset_examples(self.dataset)
+
+    def _fetch_new_questions(self):
+        new_questions = self._ctrl.get_questions(session_id=None)
+        hashes = [e['_task_hash'] for e in self._history]
+        self._queue = [q for q in new_questions if q['_task_hash'] not in hashes]
     
-    def update(self, event: str):
-        if event in ["accept", "reject", "ignore"]:
-            self._annotate_current(answer=event)
-        if event == "save":
-            self._save_full_history()
-        if event == "undo":
-            self._undo_annot()
+    def update(self, answer):
+        if answer in ['accept', 'reject', 'ignore']:
+            self._annot(answer)
+        if answer == 'undo':
+            self._undo()
+        if answer == 'save':
+            self._save()
     
-    def _annotate_current(self, answer:str) -> None:
-        self._set_answer_current_example(answer=answer)
-        self.history.append(self.batch_now[self.idx])
-        if self.idx >= (len(self.batch_now) - 1):
-            self.history.pop(0)
-            result = self.batch_now.pop(0)
-            self._lt_counts[result['answer']] += 1
-            self.ctrl.receive_answers([result], session_id=self.session_id)
-            self.batch_now = self.ctrl.get_questions(session_id=self.session_id)
-            self.idx = len(self.batch_now) - 1
-        else:
-            self.idx += 1
-        self.counts[answer] += 1
-    
-    def _undo_annot(self) -> None:
-        if self.idx == 0:
+    def _annot(self, answer):
+        if len(self._queue) == 0:
             return 
-        self.idx -= 1
-        self.history.pop(len(self.history) - 1)
-    
-    def _save_full_history(self) -> None:
-        for r in self.history:
-            self._lt_counts[r['answer']] += 1
-        self.ctrl.receive_answers(self.history)
-        self.batch_now = self.ctrl.get_questions(session_id=self.session_id)
-        self.idx = 0
-        self.history = []
-
-    def _set_answer_current_example(self, answer: str) -> None:
-        if answer == "undo":
-            return
-        self.batch_now[self.idx]["answer"] = answer
-        self.batch_now[self.idx]["_session_id"] = self.session_id
-        self.batch_now[self.idx]["label"] = self.label
+        item = self._queue[0].copy()
+        self._queue = self._queue[1:]
+        item['answer'] = answer
+        item['label'] = self._label
         timestamp = dt.datetime.timestamp((dt.datetime.now()))
-        self.batch_now[self.idx]["timestamp"] = int(timestamp)
+        item['timestamp'] = timestamp
+        self._history.append(item)
+        
+        if len(self._queue) == 0:
+            self._fetch_new_questions()
+        
+        if len(self._history) > 4:
+            item = self._history.pop(0)
+            self._ctrl.receive_answers([item])
+            self._fetch_new_questions()
+    
+    def _undo(self):
+        if len(self._history) == 0:
+            return
+        item = self._history.pop(-1)
+        self._queue = [item] + self._queue
+    
+    def _save(self):
+        self._ctrl.receive_answers(self._history)
+        self._history = []
+        self._fetch_new_questions()
 
 
-def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[str]=None) -> App:
+def create_app(dataset:str, label:str, ctrl: Controller) -> App:
     """Creates a Textual app for Prodigy from the Command Line"""
 
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
-        CSS_PATH = ["style.css", "subset.css"]
+        CSS_PATH = ["style.css"]
         TITLE = "Prodigy"
         BINDINGS = [
             Binding("a", "on_annot('accept')", "Accept"),
@@ -102,7 +111,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             Binding("backspace", "on_annot('undo')", "Undo")
         ]
         ACTIVE_EFFECT_DURATION = 0.6
-        state = AppState(ctrl=ctrl, session_id=session_id, label=label)
+        state = AppState(ctrl=ctrl, label=label)
 
         def render_count(self, kind="accept"):
             """Renders a line of text for the sidebar to display counts."""
@@ -170,7 +179,6 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
                 Button("💾", id="save", classes="mx-3", variant="primary",),
                 Static("",),
                 Static(f"Dataset: {dataset}", classes="text-center"),
-                Static(f"Session: {session_id}", classes="text-center"),
                 Static("",),
                 Static("Progress", classes="bold text-center"),
                 Static("",),
@@ -214,9 +222,8 @@ cli = Radicli()
     dataset=Arg(help="dataset to write annotations into"),
     source=Arg(help="path to text source"),
     label=Arg("--label", "-l", help="category label to apply, only binary is supported"),
-    session_id=Arg("--session-id", "-s", help="session_id to attach to annotations")
 )
-def textcat_tui_manual(dataset:str, source: Path, label: str, session_id: str=None):
+def textcat_tui_manual(dataset:str, source: Path, label: str):
     """Interface for binary text classification from the terminal!"""
     # TODO: why does this give a resource warning?
     stream = get_stream(source, dedup=True, rehash=True)
@@ -226,20 +233,20 @@ def textcat_tui_manual(dataset:str, source: Path, label: str, session_id: str=No
         "stream": stream
     }
     ctrl = Controller.from_components("textcat.tui.manual", components)
-    app = create_app(dataset=dataset, label=label, ctrl=ctrl, session_id=session_id)
+    app = create_app(dataset=dataset, label=label, ctrl=ctrl)
     app().run()
 
-source = "go-emotions-small.jsonl"
-dataset = "tui-total-demo"
-session_id = None
-stream = get_stream(source, dedup=True, rehash=True)
-components = {
-    "dataset": dataset,
-    "view_id": "classification",
-    "stream": stream
-}
-ctrl = Controller.from_components("textcat.tui.manual", components)
-app = create_app(dataset="demo", label="pos", ctrl=ctrl, session_id=session_id)
+# source = "go-emotions-small.jsonl"
+# dataset = "tui-total-demo"
+# session_id = None
+# stream = get_stream(source, dedup=True, rehash=True)
+# components = {
+#     "dataset": dataset,
+#     "view_id": "classification",
+#     "stream": stream
+# }
+# ctrl = Controller.from_components("textcat.tui.manual", components)
+# app = create_app(dataset="demo", label="pos", ctrl=ctrl)
 
 if __name__ == "__main__":
     cli.run()
