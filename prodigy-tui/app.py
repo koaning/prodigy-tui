@@ -1,6 +1,6 @@
 import datetime as dt
 from collections import Counter
-from typing import Dict
+from typing import Dict, List
 
 from prodigy.components.db import connect
 from prodigy.core import Controller
@@ -14,7 +14,7 @@ from textual.widgets import Button, Static
 
 
 class State:
-    def __init__(self, ctrl, label):
+    def __init__(self, ctrl: Controller, label: str):
         self._ctrl = ctrl
         self.dataset = ctrl.dataset
         self._label = label
@@ -23,7 +23,7 @@ class State:
         self._lt_counts = Counter({"accept": 0, "reject": 0, "ignore": 0})
 
     @property
-    def card_contents(self):
+    def card_contents(self) -> Dict:
         """For now we only consider text, but we might extend this to other types."""
         if len(self._queue) == 0:
             return {
@@ -37,19 +37,19 @@ class State:
         return Counter([r["answer"] for r in self._history]) + self._lt_counts
 
     @property
-    def history(self):
+    def history(self) -> List[Dict]:
         return self._history
 
-    def get_dataset_examples(self):
+    def get_dataset_examples(self) -> List[Dict]:
         db = connect()
         return db.get_dataset_examples(self.dataset)
 
-    def _fetch_new_questions(self):
+    def _fetch_new_questions(self) -> None:
         new_questions = self._ctrl.get_questions(session_id=None)
         hashes = [e["_task_hash"] for e in self._history]
         self._queue = [q for q in new_questions if q["_task_hash"] not in hashes]
 
-    def update(self, event):
+    def update(self, event: str) -> None:
         if event in ["accept", "reject", "ignore"]:
             self._annot(event)
         if event == "undo":
@@ -57,7 +57,7 @@ class State:
         if event == "save":
             self._save()
 
-    def _annot(self, answer):
+    def _annot(self, answer: str) -> None:
         if len(self._queue) == 0:
             return
         item = self._queue[0].copy()
@@ -77,13 +77,13 @@ class State:
             self._fetch_new_questions()
             self._lt_counts[answer] += 1
 
-    def _undo(self):
+    def _undo(self) -> None:
         if len(self._history) == 0:
             return
         item = self._history.pop(-1)
         self._queue = [item] + self._queue
 
-    def _save(self):
+    def _save(self) -> None:
         self._ctrl.receive_answers(self._history)
         for ex in self._history:
             self._lt_counts[ex["answer"]] += 1
