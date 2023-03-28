@@ -252,9 +252,10 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
     return ProdigyTextcat
 
 
-# stream = get_stream("go-emotions-small.jsonl", rehash=True)
+# Run this when you want to make a screenshot via `textual run`
 
-# source = "go-emotions-small.jsonl"
+# from prodigy import get_stream
+# source = "examples.jsonl"
 # dataset = "tui-total-demo"
 # session_id = None
 # stream = get_stream(source, dedup=True, rehash=True)
@@ -264,7 +265,7 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
 #     "stream": stream
 # }
 # ctrl = Controller.from_components("textcat.tui.manual", components)
-# app = create_app(dataset="demo", label="pos", ctrl=ctrl)
+# app = create_app(dataset="demo", label="positive", ctrl=ctrl)
 
 # if __name__ == "__main__":
-# app.run()
+#     app.run()
