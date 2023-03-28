@@ -33,7 +33,9 @@ class AppState:
     @property
     def card_contents(self):
         """For now we only consider text, but we might extend this to other types."""
-        return self.batch_now[self.idx]['text']
+        if len(self.batch_now) == 0:
+            return {"text": "empty stream"}
+        return {"text": self.batch_now[self.idx]['text']}
 
     @property
     def counts(self):
@@ -79,7 +81,6 @@ class AppState:
     def _set_answer_current_example(self, answer: str) -> None:
         if answer == "undo":
             return
-        log(answer)
         self.batch_now[self.idx]["answer"] = answer
         self.batch_now[self.idx]["_session_id"] = self.session_id
         self.batch_now[self.idx]["label"] = self.label
@@ -116,18 +117,12 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
 
         def action_on_annot(self, answer:str) -> None:
             self._handle_annot_effect(answer=answer)
-            self.state.update_annot_state(answer=answer)
+            self.state.update(event=answer)
             self.update_view()
         
         def on_button_pressed(self, event: Button.Pressed) -> None:
             """Event handler called when a button is pressed."""
-            if event.button.id == "save":
-                return self.action_on_save()
             self.action_on_annot(answer = event.button.id)
-        
-        def action_on_save(self):
-            self.state._save_full_history()
-            self.update_view()
         
         def _handle_annot_effect(self, answer: str) -> None:
             classes="border-hkey-gray-600 border-hkey-green-600 border-hkey-red-600"
@@ -166,7 +161,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             self.query_one("#n_reject").update(self.render_count("reject"))
             self.query_one("#n_ignore").update(self.render_count("ignore"))
             self.query_one("#n_total").update(self.render_count("total"))
-            self.query_one("#textcard").update(self.state.current_text)
+            self.query_one("#textcard").update(self.state.card_contents['text'])
             self.query_one("#history").update(self._history_str())
 
         def compose(self) -> ComposeResult:
@@ -194,7 +189,7 @@ def create_app(dataset:str, label:str, ctrl: Controller, session_id: Optional[st
             yield Vertical(
                 Vertical(
                     Static(label.upper(), classes="bg-purple-600 border-t-tall-purple-100 border-b-tall-purple-900 text-white text-center bold m-1"),
-                    Static(self.state.current_text, classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
+                    Static(self.state.card_contents['text'], classes="bg-white border-hkey-gray-400 text-black text-center bold w-full h-auto m-1", id="textcard"),
                     classes="dock-top"
                 ),
                 Horizontal(

@@ -24,8 +24,9 @@ def tmp_dataset() -> Generator[str, None, None]:
 @pytest.fixture()
 def controller():
     with tmp_dataset() as f:
-        source = "go-emotions-small.jsonl"
+        source = [{"text": f"example {i}"} for i in range(200)]
         stream = get_stream(source, dedup=True, rehash=True)
+        print(next(stream))
         components = {
             "dataset": f,
             "view_id": "classification",
@@ -72,3 +73,12 @@ def test_state_updates_after_undo(controller, event):
     db = connect()
     examples = db.get_dataset_examples(state.ctrl.dataset)
     assert len(examples) == 100
+
+
+@pytest.mark.parametrize("event", ["accept", "skip", "reject"])
+def test_empty_card(controller, event):
+    state = AppState(ctrl=controller, label="DEMO")
+    for _ in range(200):
+        state.update(event)
+    state.update("save")
+    assert state.card_contents['text'] == "empty stream"
