@@ -1,9 +1,5 @@
-from queue import SimpleQueue, Queue
-
 import datetime as dt 
-from radicli import Radicli, Arg
-from pathlib import Path 
-from typing import Dict, Optional, List
+from typing import Dict
 from collections import Counter
 
 from prodigy import get_stream
@@ -217,27 +213,6 @@ def create_app(dataset:str, label:str, ctrl: Controller) -> App:
 
 # stream = get_stream("go-emotions-small.jsonl", rehash=True)
 
-cli = Radicli()
-
-@cli.command(
-    "textcat.tui.manual",
-    dataset=Arg(help="dataset to write annotations into"),
-    source=Arg(help="path to text source"),
-    label=Arg("--label", "-l", help="category label to apply, only binary is supported"),
-)
-def textcat_tui_manual(dataset:str, source: Path, label: str):
-    """Interface for binary text classification from the terminal!"""
-    # TODO: why does this give a resource warning?
-    stream = get_stream(source, dedup=True, rehash=True)
-    components = {
-        "dataset": dataset,
-        "view_id": "classification",
-        "stream": stream
-    }
-    ctrl = Controller.from_components("textcat.tui.manual", components)
-    app = create_app(dataset=dataset, label=label, ctrl=ctrl)
-    app().run()
-
 # source = "go-emotions-small.jsonl"
 # dataset = "tui-total-demo"
 # session_id = None
@@ -250,6 +225,5 @@ def textcat_tui_manual(dataset:str, source: Path, label: str):
 # ctrl = Controller.from_components("textcat.tui.manual", components)
 # app = create_app(dataset="demo", label="pos", ctrl=ctrl)
 
-if __name__ == "__main__":
-    cli.run()
+# if __name__ == "__main__":
     # app.run()
