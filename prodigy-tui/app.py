@@ -2,6 +2,7 @@ from pathlib import Path
 import datetime as dt
 from collections import Counter
 from typing import Dict, List
+from pkg_resources import resource_filename
 
 from prodigy.components.db import connect
 from prodigy.core import Controller
@@ -98,7 +99,7 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
 
-        CSS_PATH = [Path(__file__).parent / "style.css"]
+        CSS_PATH = [resource_filename("prodigy-tui", "style.css")]
         TITLE = "Prodigy"
         BINDINGS = [
             Binding("a", "on_annot('accept')", "Accept"),
