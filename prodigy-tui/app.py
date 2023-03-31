@@ -98,7 +98,7 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
 
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
-
+        print(resource_filename("prodigy-tui", "style.css"))
         CSS_PATH = [resource_filename("prodigy-tui", "style.css")]
         TITLE = "Prodigy"
         BINDINGS = [
