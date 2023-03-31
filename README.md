@@ -42,7 +42,7 @@ And this will start saving annotations into the `reddit-data` dataset.
 You will need to install this tool in an environment that already has Prodi.gy installed. Given such an environment, you can use pip. 
 
 ```
-
+python -m pip install "prodigy-tui @ git+https://github.com/koaning/prodigy-tui.git"
 ```
 
 ## Features 
