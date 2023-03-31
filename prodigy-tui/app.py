@@ -1,3 +1,4 @@
+from pathlib import Path 
 import datetime as dt
 from collections import Counter
 from typing import Dict, List
@@ -97,7 +98,7 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
 
-        CSS_PATH = ["style.css"]
+        CSS_PATH = [Path(__file__).parent / "style.css"]
         TITLE = "Prodigy"
         BINDINGS = [
             Binding("a", "on_annot('accept')", "Accept"),
