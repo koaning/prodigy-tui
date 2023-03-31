@@ -1,3 +1,4 @@
+import os 
 from pathlib import Path 
 import datetime as dt
 from collections import Counter
@@ -98,8 +99,8 @@ def create_app(dataset: str, label: str, ctrl: Controller) -> App:
 
     class ProdigyTextcat(App):
         """The Prodigy textcat Widget"""
-        print(resource_filename("prodigy-tui", "style.css"))
-        CSS_PATH = [resource_filename("prodigy-tui", "style.css")]
+        print(resource_filename("prodigy-tui", os.path.join("static", "style.css")))
+        CSS_PATH = [resource_filename("prodigy-tui", os.path.join("static", "style.css"))]
         TITLE = "Prodigy"
         BINDINGS = [
             Binding("a", "on_annot('accept')", "Accept"),

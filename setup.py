@@ -33,7 +33,7 @@ setup(
     packages=find_packages(include=["prodigy-tui"]),
     package_data={
         "prodigy-tui": [
-            "style.css"
+            "static/style.css"
         ]
     },
     install_requires=base_packages,
