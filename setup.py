@@ -31,6 +31,11 @@ setup(
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     packages=find_packages(include=["prodigy-tui"]),
+    package_data={
+        "prodigy-tui": [
+            "*.css"
+        ]
+    }
     install_requires=base_packages,
     extras_require={"dev": dev_packages},
     classifiers=[
