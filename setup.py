@@ -35,7 +35,7 @@ setup(
         "prodigy-tui": [
             "*.css"
         ]
-    }
+    },
     install_requires=base_packages,
     extras_require={"dev": dev_packages},
     classifiers=[
