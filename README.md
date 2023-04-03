@@ -4,6 +4,10 @@ A TUI for [Prodigy](https://prodi.gy/), made with [Textual](https://textual.text
 
 ![](landing.png)
 
+You can watch the brief overview demo below here:
+
+https://user-images.githubusercontent.com/1019791/229484211-4921a2ea-3c36-4a89-912f-fea3f120b1df.mp4
+
 This project is currently mainly meant as a demo. Partially because doing annotations via the terminal is relatively experimental, but also because I cannot guarantee full feature parity with Prodigy just yet. The only implemented interface right now is `textcat.manual` but I may implement more in the future. 
 
 That said, this tool _does_ integrate with Prodigy. For example, when you run this:
@@ -53,9 +57,17 @@ python -m pip install "prodigy-tui @ git+https://github.com/koaning/prodigy-tui.
 
 ## Features 
 
+- Saves the data to Prodigy like normal, keeping config files in mind.
 - Works over SSH, no need to share a browser. 
 - Keyboard shortcuts are the same. 
 - You could even click the buttons if you really wanted to though. 
+
+## Roadmap 
+
+- Support highlights in text
+- Support multiple choices (inclusive/exclusive)
+- Support images
+- Add hierarchy between components/cards
 
 ## Feedback
 
