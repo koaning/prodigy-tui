@@ -68,7 +68,7 @@ class State:
         item["answer"] = answer
         item["label"] = self._label
         timestamp = dt.datetime.timestamp((dt.datetime.now()))
-        item["timestamp"] = timestamp
+        item["timestamp"] = int(timestamp)
         self._history.append(item)
 
         if len(self._queue) == 0:
